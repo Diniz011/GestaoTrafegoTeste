@@ -1,0 +1,46 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Código
+      uses: actions/checkout@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '6.0.x'
+
+    - name: Build e Teste
+      run: |
+        dotnet restore
+        dotnet build --configuration Release
+
+    - name: Build Docker Image
+      run: |
+        docker build -t gestao-trafego:latest .
+
+    - name: Login no Docker Hub
+      run: |
+        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+    - name: Push da Imagem
+      run: |
+        docker tag gestao-trafego:latest dockerhub_usuario/gestao-trafego:latest
+        docker push dockerhub_usuario/gestao-trafego:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Deploy para Staging
+      run: |
+        docker-compose up -d
